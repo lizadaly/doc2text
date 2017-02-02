@@ -3,9 +3,9 @@
 import os
 import mimetypes
 
-import PyPDF2 as pyPdf
-import PythonMagick
 import cv2
+import PyPDF2 as pyPdf
+from wand.image import Image
 
 from .page import Page
 
@@ -20,6 +20,9 @@ FileNotAcceptedException = Exception(
 
 
 class Document(object):
+    CONVERSION_RESOLUTION = 300
+    COMPRESSION_QUALITY = 99
+
     def __init__(self, lang=None):
         self.lang = lang
         self.pages = []
@@ -27,6 +30,12 @@ class Document(object):
         self.page_content = []
         self.prepared = False
         self.error = None
+        self.path = None
+
+    def _convert(self, source, destination):
+        with Image(filename=source, resolution=self.CONVERSION_RESOLUTION) as image:
+            image.compression_quality = self.COMPRESSION_QUALITY
+            image.save(filename=destination)
 
     def read(self, path):
         self.filename = os.path.basename(path)
@@ -41,17 +50,14 @@ class Document(object):
             pdf_reader = pyPdf.PdfFileReader(file_temp)
             self.num_pages = pdf_reader.numPages
             try:
-                for i in xrange(self.num_pages):
+                for i in range(self.num_pages):
                     output = pyPdf.PdfFileWriter()
                     output.addPage(pdf_reader.getPage(i))
                     path = 'temp.pdf'
                     im_path = 'temp.png'
                     with open(path, 'wb') as f:
                         output.write(f)
-                    im = PythonMagick.Image()
-                    im.density("300")
-                    im.read(path)
-                    im.write(im_path)
+                    self._convert(path, im_path)
                     orig_im = cv2.imread(im_path, 0)
                     page = Page(orig_im, i, self.lang)
                     self.pages.append(page)
@@ -65,13 +71,10 @@ class Document(object):
         # If the file is an image, think of it as a 1-page pdf.
         elif self.mime_type[0] in acceptable_mime:
             self.num_pages = 1
-            im = PythonMagick.Image()
-            im.density("300")
-            im.read(path)
             temp_path = os.path.normpath(os.path.join(
                 self.file_basepath, self.file_basename + '_temp.png'
             ))
-            im.write(temp_path)
+            self._convert(path, temp_path)
             orig_im = cv2.imread(temp_path, 0)
             os.remove(temp_path)
             page = Page(orig_im, 0)

@@ -1,14 +1,15 @@
 # coding=utf-8
 
 import os
+import logging
 import traceback
 import sys
 
 import cv2
 import numpy as np
+import pytesseract
 from PIL import Image
 from scipy.ndimage.filters import rank_filter
-import pytesseract
 
 
 class Page(object):
@@ -44,9 +45,13 @@ class Page(object):
     def extract_text(self):
         temp_path = 'text_temp.png'
         cv2.imwrite(temp_path, self.image)
-        self.text = pytesseract.image_to_string(Image.open(temp_path), lang=self.lang)
-        os.remove(temp_path)
-        return self.text
+        try:
+            return pytesseract.image_to_string(Image.open(temp_path), lang=self.lang)
+        except TypeError:
+            # TODO: tesseract is throwing a TypeError on python 3 code (bad string handling)
+            logging.error('Tesseract error when calling tesseract')
+        finally:
+            os.remove(temp_path)
 
     def save(self, out_path):
         if not self.healthy:
