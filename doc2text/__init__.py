@@ -23,12 +23,20 @@ class Document(object):
     CONVERSION_RESOLUTION = 300
     COMPRESSION_QUALITY = 99
 
+    @property
+    def text(self):
+        if not self.processed:
+            self._process()
+
+        return '\f'.join([(p.extract_text() or ' ') for p in self.processed_pages])
+
     def __init__(self, lang=None):
         self.lang = lang
         self.pages = []
         self.processed_pages = []
         self.page_content = []
         self.prepared = False
+        self.processed = False
         self.error = None
         self.path = None
 
@@ -36,6 +44,15 @@ class Document(object):
         with Image(filename=source, resolution=self.CONVERSION_RESOLUTION) as image:
             image.compression_quality = self.COMPRESSION_QUALITY
             image.save(filename=destination)
+
+    def _process(self):
+        def process_page(p):
+            p.crop()
+            p.deskew()
+            return p
+
+        self.processed_pages = [process_page(p) for p in self.pages]
+        self.processed = True
 
     def read(self, path):
         self.filename = os.path.basename(path)
@@ -86,27 +103,5 @@ class Document(object):
             raise FileNotAcceptedException
 
     def process(self):
-        for page in self.pages:
-            new = page
-            new.crop()
-            new.deskew()
-            self.processed_pages.append(new)
-
-    def extract_text(self):
-        if len(self.processed_pages) > 0:
-            for page in self.processed_pages:
-                new = page
-                text = new.extract_text()
-                self.page_content.append(text)
-        else:
-            raise Exception('You must run `process()` first.')
-
-    def get_text(self):
-        if len(self.page_content) > 0:
-            return "\n".join(self.page_content)
-        else:
-            raise Exception('You must run `extract_text()` first.')
-
-    def save_pages(self):
-        # TODO
-        stuff = stuff
+        if not self.processed:
+            self._process()

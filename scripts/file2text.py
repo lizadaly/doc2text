@@ -18,12 +18,7 @@ def main():
     # If reading a PDF, doc2text will split the PDF into its component pages.
     doc.read(os.path.abspath(args.file))
 
-    # Crop the pages down to estimated text regions, deskew, and optimize for OCR.
-    doc.process()
-
-    # Extract text from the pages.
-    doc.extract_text()
-    print(doc.get_text())
+    print(doc.text)
 
 
 if __name__ == '__main__':
