@@ -41,7 +41,7 @@ class Document(object):
             pdf_reader = pyPdf.PdfFileReader(file_temp)
             self.num_pages = pdf_reader.numPages
             try:
-                for i in xrange(self.num_pages):
+                for i in range(self.num_pages):
                     output = pyPdf.PdfFileWriter()
                     output.addPage(pdf_reader.getPage(i))
                     path = 'temp.pdf'
