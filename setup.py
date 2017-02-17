@@ -11,8 +11,7 @@ with codecs.open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
 setup(
     name='doc2text',
     version='3.0a1',
-
-    description='doc2text drastically improves the extraction of text from images by fixing resolution, text area (crop), and skew.',
+    description='Tesseract-based OCR tool, improves text extraction of PDF and image files',
     long_description=long_description,
 
     # The project's main homepage.
@@ -84,6 +83,6 @@ setup(
     entry_points={
         'console_scripts': [
             'doc2text=scripts.file2text:main'
-        ],
+        ]
     }
 )
