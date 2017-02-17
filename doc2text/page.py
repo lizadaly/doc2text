@@ -1,64 +1,40 @@
-# coding=utf-8
-
 import os
 import logging
-import traceback
-import sys
 
 import cv2
 import numpy as np
 import pytesseract
-from PIL import Image
 from scipy.ndimage.filters import rank_filter
+from PIL import Image
+
+
+def get_image(fd):
+    image_array = np.asarray(bytearray(fd.read()), dtype=np.uint8)
+    return cv2.imdecode(image_array, 0)
 
 
 class Page(object):
-    def __init__(self, im, page_num, lang=None):
-        self.healthy = True
-        self.err = False
-        self.page_num = page_num
-        self.orig_im = im
-        self.orig_shape = self.orig_im.shape
-        self.lang = lang
+    def __init__(self, file_descriptor):
+        self.original = get_image(file_descriptor)
+        self._processed = None
 
-    def crop(self):
-        try:
-            self.image, self.num_tries = process_image(self.orig_im)
-            self.crop_shape = self.image.shape
-            return self.image
-        except Exception as e:
-            for frame in traceback.extract_tb(sys.exc_info()[2]):
-                fname, lineno, fn, text = frame
-                print("Error in %s on line %d" % (fname, lineno))
-                print(e)
-            self.err = e
-            self.healthy = False
-
-    def deskew(self):
-        try:
-            self.image, self.theta_est = process_skewed_crop(self.image)
-            return self.image
-        except Exception as e:
-            self.err = e
-            self.healthy = False
-
-    def extract_text(self):
+    def extract_text(self, lang):
         temp_path = 'text_temp.png'
-        cv2.imwrite(temp_path, self.image)
+        cv2.imwrite(temp_path, self.processed)
         try:
-            return pytesseract.image_to_string(Image.open(temp_path), lang=self.lang)
+            return pytesseract.image_to_string(Image.open(temp_path), lang=lang)
         except TypeError:
             # TODO: tesseract is throwing a TypeError on python 3 code (bad string handling)
             logging.error('Tesseract error when calling tesseract')
         finally:
             os.remove(temp_path)
 
-    def save(self, out_path):
-        if not self.healthy:
-            print("There was an error when cropping")
-            raise Exception(self.err)
-        else:
-            self.imwrite(out_path, self.image)
+    @property
+    def processed(self):
+        if not self._processed:
+            cropped_image = process_image(self.original)
+            self._processed = process_skew(cropped_image)
+        return self._processed
 
 
 def auto_canny(image, sigma=0.33):
@@ -210,10 +186,10 @@ def find_final_crop(im, rects):
     return current
 
 
-def process_image(orig_im):
+def process_image(decoded_image):
 
     # Load and scale down image.
-    scale, im = downscale_image(orig_im)
+    scale, im = downscale_image(decoded_image)
 
     # Reduce noise.
     blur = reduce_noise_raw(im.copy())
@@ -225,17 +201,17 @@ def process_image(orig_im):
     debordered = reduce_noise_edges(edges.copy())
 
     # Dilate until there are a few components.
-    dilation, rects, num_tries = find_components(debordered, 16)
+    dilation, rects, _ = find_components(debordered, 16)
 
     # Find the final crop.
     final_rect = find_final_crop(dilation, rects)
 
     # Crop the image and smooth.
-    cropped = crop_image(orig_im, final_rect, scale)
+    cropped = crop_image(decoded_image, final_rect, scale)
     kernel = np.ones((5, 5), np.float32) / 25
     smooth2d = cv2.filter2D(cropped, -1, kernel=kernel)
 
-    return (smooth2d, num_tries)
+    return smooth2d
 
 
 def rad_to_deg(theta):
@@ -286,8 +262,8 @@ def compute_skew(theta):
     return -diff
 
 
-def process_skewed_crop(image):
+def process_skew(image):
     theta = compute_skew(estimate_skew(image))
     ret, thresh = cv2.threshold(image.copy(), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     rotated = rotate(thresh, theta)
-    return (rotated, theta)
+    return rotated

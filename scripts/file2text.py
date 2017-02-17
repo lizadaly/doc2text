@@ -12,14 +12,9 @@ def main():
 
     args = parser.parse_args()
 
-    # Initialize the class.
-    doc = Document(lang=args.language)
-
-    # Read the file in. Currently accepts pdf, png, jpg, bmp, tiff.
-    # If reading a PDF, doc2text will split the PDF into its component pages.
-    doc.read(os.path.abspath(args.infile))
+    doc = Document.get_by_path(args.infile)
     with open(os.path.abspath(args.outfile), 'w') as outfile:
-        outfile.write(doc.text)
+        outfile.write(doc.get_text(args.language))
 
 
 if __name__ == '__main__':
