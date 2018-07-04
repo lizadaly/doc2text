@@ -7,6 +7,9 @@ import pytesseract
 from scipy.ndimage.filters import rank_filter
 from PIL import Image
 
+logging.basicConfig(level=logging.DEBUG)
+
+logger = logging.getLogger()
 
 def get_image(fd):
     image_array = np.asarray(bytearray(fd.read()), dtype=np.uint8)
@@ -15,7 +18,6 @@ def get_image(fd):
 
 class Page(object):
     def __init__(self, file_descriptor):
-        print("Starting")
         self.original = get_image(file_descriptor)
         self._processed = None
 
@@ -39,7 +41,7 @@ class Page(object):
             print("Returning deskewed image")
         return self._processed
 
-    def get_image(self, outfile):
+    def crop_image(self, outfile):
         cv2.imwrite(outfile, self.processed)
 
 def auto_canny(image, sigma=0.33):
@@ -213,11 +215,11 @@ def process_image(decoded_image):
     # Find the final crop.
     final_rect = find_final_crop(dilation, rects)
 
-    # Crop the image and smooth.
+    # Crop the image
     cropped = crop_image(decoded_image, final_rect, scale)
     kernel = np.ones((5, 5), np.float32) / 25
     smooth2d = cv2.filter2D(cropped, -1, kernel=kernel)
-    print("Returning smoothed image")
+    print("Returning processed image")
     return smooth2d
 
 
@@ -237,8 +239,12 @@ def rotate(image, theta):
 def estimate_skew(image):
     edges = auto_canny(image)
     lines = cv2.HoughLines(edges, 1, np.pi / 90, 200)
-    new = edges.copy()
 
+    if lines is None:
+        logger.error("Could not get lines from HoughLines func; returning 0 for skew")
+        return 0
+
+    new = edges.copy()
     thetas = []
 
     for line in lines:

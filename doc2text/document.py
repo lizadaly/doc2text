@@ -43,10 +43,6 @@ class Document(object):
         self._preprocess()
         self.prepared = True
 
-    def get_image(self, outfile='image.png'):
-        if not self.prepared:
-            self.prepare()
-        self._page.get_image(outfile)
 
     @staticmethod
     def get_by_path(path):
@@ -69,6 +65,10 @@ class ImageDocument(Document):
             self.prepare()
         return self._page.extract_text(language)
 
+    def crop_image(self, outfile='image.png'):
+        if not self.prepared:
+            self.prepare()
+        self._page.crop_image(outfile)
 
     def _preprocess(self):
         out_buffer = BytesIO()
