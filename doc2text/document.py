@@ -43,6 +43,11 @@ class Document(object):
         self._preprocess()
         self.prepared = True
 
+    def get_image(self, outfile='image.png'):
+        if not self.prepared:
+            self.prepare()
+        self._page.get_image(outfile)
+
     @staticmethod
     def get_by_path(path):
         mime_type, _ = mimetypes.guess_type(path)
@@ -64,6 +69,7 @@ class ImageDocument(Document):
             self.prepare()
         return self._page.extract_text(language)
 
+
     def _preprocess(self):
         out_buffer = BytesIO()
         with open(self.path, 'rb') as f:
@@ -81,6 +87,7 @@ class PDFDocument(Document):
         if not self.prepared:
             self.prepare()
         return '\f'.join([(p.extract_text(language) or ' ') for p in self.pages])
+
 
     def _preprocess(self):
         pdf_reader = pyPdf.PdfFileReader(open(self.path, 'rb'))

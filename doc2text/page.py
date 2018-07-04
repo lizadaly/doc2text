@@ -10,11 +10,12 @@ from PIL import Image
 
 def get_image(fd):
     image_array = np.asarray(bytearray(fd.read()), dtype=np.uint8)
-    return cv2.imdecode(image_array, 0)
+    return image_array
 
 
 class Page(object):
     def __init__(self, file_descriptor):
+        print("Starting")
         self.original = get_image(file_descriptor)
         self._processed = None
 
@@ -31,11 +32,15 @@ class Page(object):
 
     @property
     def processed(self):
-        if not self._processed:
+        if self._processed is None:
             cropped_image = process_image(self.original)
-            self._processed = process_skew(cropped_image)
+            self._processed = cropped_image
+            # self._processed = process_skew(cropped_image)
+            print("Returning deskewed image")
         return self._processed
 
+    def get_image(self, outfile):
+        cv2.imwrite(outfile, self.processed)
 
 def auto_canny(image, sigma=0.33):
     v = np.median(image)
@@ -187,6 +192,8 @@ def find_final_crop(im, rects):
 
 
 def process_image(decoded_image):
+    print("Decoding image %s" % decoded_image)
+    decoded_image = cv2.imdecode(decoded_image, 1)
 
     # Load and scale down image.
     scale, im = downscale_image(decoded_image)
@@ -210,7 +217,7 @@ def process_image(decoded_image):
     cropped = crop_image(decoded_image, final_rect, scale)
     kernel = np.ones((5, 5), np.float32) / 25
     smooth2d = cv2.filter2D(cropped, -1, kernel=kernel)
-
+    print("Returning smoothed image")
     return smooth2d
 
 
