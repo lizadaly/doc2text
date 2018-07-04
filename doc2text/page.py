@@ -35,7 +35,7 @@ class Page(object):
         if self._processed is None:
             cropped_image = process_image(self.original)
             self._processed = cropped_image
-            # self._processed = process_skew(cropped_image)
+            self._processed = process_skew(cropped_image)
             print("Returning deskewed image")
         return self._processed
 
@@ -271,6 +271,5 @@ def compute_skew(theta):
 
 def process_skew(image):
     theta = compute_skew(estimate_skew(image))
-    ret, thresh = cv2.threshold(image.copy(), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    rotated = rotate(thresh, theta)
+    rotated = rotate(image, theta)
     return rotated
